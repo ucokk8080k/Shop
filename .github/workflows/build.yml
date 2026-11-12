@@ -1,0 +1,44 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ekstrak source
+        run: unzip -oq EcoMenu-1.1.0-source.zip
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: EcoMenu/pom.xml
+
+      - name: Build jar
+        working-directory: EcoMenu
+        run: mvn -B -ntp package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EcoMenu
+          path: EcoMenu/target/EcoMenu-*.jar
+
+      - name: Update release latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest EcoMenu/target/EcoMenu-*.jar \
+            --target "$GITHUB_SHA" \
+            --title "EcoMenu - build terbaru" \
+            --notes "Jar hasil build otomatis. Taruh di folder plugins/."
